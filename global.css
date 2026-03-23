@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 251 251 251; /* Your Cream #FBFBFB */
+    --foreground: 24 23 25;    /* Your Dark #181719 */
+    --primary: 26 54 93;      /* Your Ile & Co. Blue */
+    --primary-foreground: 255 255 255;
+    /* Add other shadcn variables here */
+  }
+}
