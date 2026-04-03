@@ -11,3 +11,7 @@
     /* Add other shadcn variables here */
   }
 }
+
+body * {
+  scrollbar-width: thin;
+}

@@ -1,27 +1,23 @@
 // components/voice-button/mobile-voice-button.tsx
 import React, { useRef, useEffect } from 'react';
 import { Platform, TouchableOpacity, Animated, StyleSheet, View, Alert, Linking } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { usePalette } from '@/constants/colors';
 import { useMicrophonePermission } from '@/hooks/use-microphone-permission';
 
-interface MobileVoiceButtonProps {
-  isListening: boolean;
+interface MobileAudioButtonProps {
+  isRecording: boolean;
   isMuted: boolean;
-  oracleSpeaking: boolean;
-  onStartListening: () => void;
-  onStopListening: () => void;
-  onLongPress: () => void;
+  onStartRecording: () => void;
+  onStopRecording: () => void;
 }
 
-export function MobileVoiceButton({
-  isListening,
+export function MobileAudioButton({
   isMuted,
-  oracleSpeaking,
-  onStartListening,
-  onStopListening,
-  onLongPress,
-}: MobileVoiceButtonProps) {
+  isRecording,
+  onStartRecording,
+  onStopRecording,
+}: MobileAudioButtonProps) {
   const p = usePalette();
   const { granted, requestPermission } = useMicrophonePermission();
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -30,7 +26,7 @@ export function MobileVoiceButton({
   if (Platform.OS === 'web') return null;
 
   useEffect(() => {
-    if (isListening || oracleSpeaking) {
+    if (isRecording) {
       Animated.loop(
         Animated.sequence([
           Animated.parallel([
@@ -49,13 +45,13 @@ export function MobileVoiceButton({
       pulseAnim.setValue(1);
       opacityAnim.setValue(1);
     }
-  }, [isListening, oracleSpeaking]);
+  }, [isRecording]);
 
   const handlePress = async () => {
     if (isMuted) return;
 
-    if (isListening) {
-      onStopListening();
+    if (isRecording) {
+      onStopRecording();
       return;
     }
 
@@ -76,42 +72,32 @@ export function MobileVoiceButton({
     }
 
     // ← whisper.rn plugs in here in Phase 2 native build
-    onStartListening();
-  };
-
-  const getIcon = (): any => {
-    if (isMuted) return 'mic-off';
-    if (isListening) return 'x';
-    if (oracleSpeaking) return 'volume-2';
-    return 'mic';
+    onStartRecording();
   };
 
   const getBgColor = () => {
     if (isMuted) return p.bgCard;
-    if (isListening) return p.accentPrimary;
-    if (oracleSpeaking) return p.accentDeep;
+    if (isRecording) return p.accentPrimary;
     return p.bgCard;
   };
 
   const getIconColor = () => {
     if (isMuted) return p.textDim;
-    if (isListening || oracleSpeaking) return '#FFFFFF';
+    if (isRecording) return '#FFFFFF';
     return p.textSecondary;
   };
 
   return (
     <TouchableOpacity
       onPress={handlePress}
-      onLongPress={onLongPress}
-      delayLongPress={500}
       activeOpacity={0.8}
       style={styles.wrapper}
     >
-      {(isListening || oracleSpeaking) && (
+      {(isRecording) && (
         <Animated.View style={[
           styles.pulseRing,
           {
-            borderColor: isListening ? p.accentPrimary : p.accentDeep,
+            borderColor: isRecording ? p.accentPrimary : p.accentDeep,
             transform: [{ scale: pulseAnim }],
             opacity: opacityAnim,
           }
@@ -123,12 +109,12 @@ export function MobileVoiceButton({
           backgroundColor: getBgColor(),
           borderColor: isMuted
             ? p.bgCardBorder
-            : isListening || oracleSpeaking
+            : isRecording
             ? 'transparent'
-            : p.bgCardBorder,
+            : p.bgCardBorder
         }
       ]}>
-        <Feather name={getIcon()} size={18} color={getIconColor()} />
+        <MaterialIcons name='multitrack-audio' size={18} color={getIconColor()} />
       </View>
     </TouchableOpacity>
   );

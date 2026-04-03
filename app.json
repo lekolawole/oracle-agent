@@ -24,17 +24,24 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "permissions": ["RECORD_AUDIO"]
+      "permissions": [
+        "RECORD_AUDIO",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ],
+      "package": "com.lekola.oracle"
     },
     "web": {
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      ["expo-av", 
-      {
-        "microphonePermission": "Oracle needs microphone access to hear your voice commands."
-      }],
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Oracle needs microphone access to hear your voice commands."
+        }
+      ],
       "expo-router",
       [
         "expo-splash-screen",

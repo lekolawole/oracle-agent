@@ -1,5 +1,5 @@
 import '@/global.css';
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   Platform, 
   Animated, 
@@ -10,7 +10,7 @@ import {
   Linking
 } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Feather, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import { usePalette } from '@/constants/colors';
 import { Box } from '@/components/ui/box';
 import { HStack } from '@/components/ui/hstack';
@@ -18,17 +18,30 @@ import { Button } from '@/components/ui/button';
 import { WebVoiceButton } from '../voice-button/web-voice-button';
 import { useMicrophonePermission } from '@/hooks/use-microphone-permission';
 import { MobileVoiceButton } from '../voice-button/mobile-voice-button';
+import { MobileAudioButton } from '../voice-button/mobile-audio-button';
+import { Audio } from 'expo-av';
+import AudioMessage from './audio-message';
 
 interface ChatInputProps {
   loading: boolean;
   isOracleSpeaking: boolean;
+  // STT Props
   isListening: boolean;
   isSupported: boolean;
   isMuted: boolean;
   startListening: () => void;
   stopListening: () => void;
   toggleMute: () => void;
+  // Recording Props
+  isRecording: boolean;
+  fileUri: string | null;
+  startRecording: () => void;
+  stopRecording: () => void;
+  clearRecording: () => void;
   onSend: (message: string) => void;
+
+  // used to fill input with STT value
+  transcript?: string;
 }
 
 export default function ChatInput({ 
@@ -38,16 +51,31 @@ export default function ChatInput({
   isListening,
   isSupported,
   isMuted,
+  isRecording,
+  fileUri,
   startListening,
   stopListening,
-  toggleMute
+  startRecording,
+  stopRecording,
+  clearRecording,
+  toggleMute,
+  transcript
 }: ChatInputProps) {
   const p = usePalette();
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState(transcript ?? '');
   const [isFull, setIsFull] = useState(false);
   const { granted, requestPermission } = useMicrophonePermission();
   
   const containerHeight = useRef(new Animated.Value(180)).current;
+
+  useEffect(() => {
+    const speechToTextInput = transcript;
+
+    if (speechToTextInput) {
+      // sends STT to text input
+      setInput(speechToTextInput)
+    }
+  }, [transcript])
 
   function toggleFullscreen() {
     Animated.spring(containerHeight, {
@@ -60,9 +88,10 @@ export default function ChatInput({
   }
 
   function sendMessage() {
-    if (!input.trim() || loading) return;
+    if ((!input.trim() && !fileUri) || loading) return;
     onSend(input.trim()); 
     setInput(''); 
+    clearRecording();
   }
 
   const handleVoicePress = async () => {
@@ -97,15 +126,17 @@ export default function ChatInput({
             
             {/* HEADER: Always stays at the top */}
           <HStack className="justify-end px-2">
-            <Pressable onPress={toggleFullscreen} className="p-2 w-10 h-10 rounded-full border justify-center items-center"
+            <Pressable onPress={toggleFullscreen} className="w-10 h-10 rounded-full border justify-center items-center"
               style={{ backgroundColor: p.bgCard, borderColor: p.bgCardBorder }}>
-              <MaterialCommunityIcons name={isFull ? "arrow-collapse" : "arrow-expand"} size={22} color={p.textSecondary} />
+              <MaterialCommunityIcons name={isFull ? "arrow-collapse" : "arrow-expand"} size={18} color={p.textSecondary} />
             </Pressable>
           </HStack>
 
             {/* BODY: The Input area MUST have flex-1 to prevent clipping */}
           <Box style={{ flex: 1, paddingHorizontal: 16, paddingBottom: 8 }}>
-            <TextInput
+            {fileUri ? 
+              <AudioMessage uri={fileUri} /> :
+              <TextInput
               placeholder="Ask Oracle..."
               placeholderTextColor={p.textSecondary}
               value={input}
@@ -121,12 +152,13 @@ export default function ChatInput({
                 // @ts-ignore - Kills the focus ring on Web/Browsers
                 outlineStyle: 'none'
               }}/>
+            }
           </Box>
 
             {/* FOOTER: Always stays at the bottom */}
           <Box className="px-4 py-3 border-t border-white/10">
             <HStack className="justify-between items-center" reversed>
-              {input.trim() ? (
+              {input.trim() || fileUri ? (
                 // Send Message Button
                 <Button 
                 onPress={sendMessage}
@@ -135,12 +167,8 @@ export default function ChatInput({
                 <Feather name="send" size={20} color="white" />
               </Button>
               ) : (
-                // Text to Speech Button
-                // <Button variant='solid'
-                //   className="w-10 h-10 rounded-full border border-white/40 justify-center items-center bg-white/10">
-                //   <Feather name="mic" size={20} color={p.textSecondary} />
-                // </Button>
-                <WebVoiceButton 
+                <HStack space='md' className="justify-end">
+                  <WebVoiceButton 
                   isListening={isListening}
                   isMuted={isMuted}
                   isOracleSpeaking={isOracleSpeaking}
@@ -151,26 +179,43 @@ export default function ChatInput({
                     else startListening();
                   }}
                   onLongPress={toggleMute} />
+                {/* Mobile — only renders on iOS/Android */}
+                  <MobileVoiceButton
+                    isListening={isListening}
+                    isMuted={isMuted}
+                    oracleSpeaking={isOracleSpeaking}
+                    onStartListening={() => {
+                      if (isMuted) return;
+                      startListening()
+                      // Placeholder — whisper.rn wired here later
+                      console.log('Mobile voice pressed — STT coming in Phase 2');
+                    }}
+                    onStopListening={() => {
+                      // placeholder for mobile
+                      stopListening()
+                      console.log('Mobile voice pressed — STT coming in Phase 2');
+                    }}
+                    onLongPress={toggleMute}
+                  />
+                  {!input && (
+                    // Only display recording button if there is no text
+                    <MobileAudioButton
+                    isRecording={isRecording}
+                    isMuted={isMuted}
+                    onStartRecording={() => {
+                      if (isMuted) return;
+                      startRecording()
+                      // Placeholder — whisper.rn wired here later
+                      console.log('Mobile recording pressed');
+                    }}
+                    onStopRecording={() => {
+                      // placeholder for mobile
+                      stopRecording()
+                      console.log('Mobile stop recording pressed');
+                    }} />
+                  )}
+                </HStack>
               )}
-
-              {/* Mobile — only renders on iOS/Android */}
-              <MobileVoiceButton
-                isListening={isListening}
-                isMuted={isMuted}
-                oracleSpeaking={isOracleSpeaking}
-                onStartListening={() => {
-                  if (isMuted) return;
-                  startListening()
-                  // Placeholder — whisper.rn wired here later
-                  console.log('Mobile voice pressed — STT coming in Phase 2');
-                }}
-                onStopListening={() => {
-                  // placeholder for mobile
-                  stopListening()
-                  console.log('Mobile voice pressed — STT coming in Phase 2');
-                }}
-                onLongPress={toggleMute}
-              />
               
               
               <HStack space="md">

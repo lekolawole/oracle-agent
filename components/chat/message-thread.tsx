@@ -10,7 +10,7 @@ import TypingIndicator from './typing-indicator';
 import { Message } from './ai-pond';
 import { HStack } from '../ui/hstack';
 import { OracleOrb } from '@/components/oracle-orb/oracle-orb';
-import { ScrollView } from 'react-native-gesture-handler';
+import { Box } from '../ui/box';
 
 interface MessagesThreadProps {
   messages: Message[];
@@ -57,9 +57,11 @@ export default function MessagesThread({ messages, loading }: MessagesThreadProp
         onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
         onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
         ListFooterComponent={loading ? (<>
-          <HStack space='md'>
+          <HStack space='xs'>
             <OracleOrb size={44} />
-            <TypingIndicator />
+            <Box>
+              <TypingIndicator />
+            </Box>
           </HStack>
         </>
       ) : null}
